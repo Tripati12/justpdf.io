@@ -22,6 +22,11 @@ from app.services.pdf.pdf_to_word import pdf_to_word
 from app.services.pdf.pdf_to_excel_tabula import pdf_to_excel_tabula
 
 import tabula
+
+
+
+
+
 import pandas as pd
 import pytesseract
 from pdf2image import convert_from_path

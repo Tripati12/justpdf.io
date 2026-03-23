@@ -1,0 +1,16 @@
+#python 
+venv/
+__pycache__/
+*.pyc 
+.env
+
+#Node / Next.js
+node_modules/
+.next/
+
+#Outouts (your generated PDFs etc)
+outputs/
+
+#OS files
+.DS_store
+Thumbs.db
