@@ -20,6 +20,12 @@ from app.services.pdf.excel_to_pdf import excel_to_pdf
 from app.services.pdf.pdf_to_word import pdf_to_word
 
 from app.services.pdf.pdf_to_excel_tabula import pdf_to_excel_tabula
+from fastapi.responses import FileResponse
+from fastapi import UploadFile, File, APIRouter
+from app.services.pdf.split import split_pdf
+
+router = APIRouter()
+
 
 import tabula
 
@@ -57,7 +63,11 @@ from app.services.pdf.delete_pages import delete_pages
 from app.services.pdf.reorder_pages import reorder_pages
 from app.services.pdf.extract_pages import extract_pages
 
+from fastapi import APIRouter, UploadFile, File
+from fastapi.responses import FileResponse
+from app.services.pdf.word_to_pdf import word_to_pdf
 
+router = APIRouter()
 
 TEMP_DIR = "temp"
 OUTPUT_DIR = "outputs"
@@ -84,10 +94,11 @@ async def merge_endpoint(files: list[UploadFile] = File(...)):
 @router.post("/split")
 async def split_endpoint(file: UploadFile = File(...)):
     zip_path = split_pdf(file)
+
     return FileResponse(
         zip_path,
-        filename="split_pages.zip",
-        media_type="application/zip"
+        media_type="application/zip",
+        filename="split_pages.zip"
     )
 
 
@@ -165,15 +176,13 @@ async def auto_compress_endpoint(
         media_type="application/pdf"
     )
 @router.post("/word-to-pdf")
-async def word_to_pdf_endpoint(
-    file: UploadFile = File(...)
-):
-    output = word_to_pdf(file)
+async def convert_word(file: UploadFile = File(...)):
+    pdf_path = word_to_pdf(file)
 
     return FileResponse(
-        output,
-        filename="document.pdf",
-        media_type="application/pdf"
+        pdf_path,
+        media_type="application/pdf",
+        filename="converted.pdf"
     )
 @router.post("/excel-to-pdf")
 async def excel_to_pdf_endpoint(
