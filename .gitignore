@@ -1,5 +1,6 @@
 #python 
 venv/
+backend/venv/
 __pycache__/
 *.pyc 
 .env
@@ -8,8 +9,10 @@ __pycache__/
 node_modules/
 .next/
 
-#Outouts (your generated PDFs etc)
+#Outouts (generated files)
 outputs/
+temp/
+*.pdf
 
 #OS files
 .DS_store
