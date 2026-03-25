@@ -1,3 +1,5 @@
+"useclient";
+
 export default function FileList({
   files,
   onRemove,
