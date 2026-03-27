@@ -64,8 +64,38 @@ from app.services.pdf.reorder_pages import reorder_pages
 from app.services.pdf.extract_pages import extract_pages
 
 from fastapi import APIRouter, UploadFile, File
-from fastapi.responses import FileResponse
-from app.services.pdf.word_to_pdf import word_to_pdf
+import os
+import uuid
+
+from app.services.queue import queue
+from app.services.pdf_worker import process_pdf
+
+router = APIRouter()
+
+TEMP_DIR = "temp"
+OUTPUT_DIR = "outputs"
+
+
+@router.post("/word-to-pdf")
+async def word_to_pdf(file: UploadFile = File(...)):
+    
+    # create unique filename
+    file_id = str(uuid.uuid4())
+    
+    input_path = os.path.join(TEMP_DIR, f"{file_id}.docx")
+    output_path = os.path.join(OUTPUT_DIR, file_id)
+
+    # save uploaded file
+    with open(input_path, "wb") as f:
+        f.write(await file.read())
+
+    # enqueue job
+    job = queue.enqueue(process_pdf, input_path, output_path)
+
+    return {
+        "job_id": job.id,
+        "status": "queued"
+    }
 
 router = APIRouter()
 
