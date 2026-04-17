@@ -1,8 +1,6 @@
-import os
+from PyPDF2 import PdfReader, PdfWriter
 import uuid
-from typing import List
-from fastapi import UploadFile
-from pypdf import PdfWriter, PdfReader
+import os
 
 TEMP_DIR = "temp"
 OUTPUT_DIR = "outputs"
@@ -10,30 +8,24 @@ OUTPUT_DIR = "outputs"
 os.makedirs(TEMP_DIR, exist_ok=True)
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-def merge_pdfs(files: List[UploadFile]) -> str:
+
+def merge_pdfs(file_paths: list[str]) -> str:
     writer = PdfWriter()
 
-    for file in files:
-        # 🔑 CRITICAL FIX
-        file.file.seek(0)
+    for path in file_paths:
+        try:
+            reader = PdfReader(path)
 
-        temp_path = os.path.join(
-            TEMP_DIR, f"{uuid.uuid4()}_{file.filename}"
-        )
+            for page in reader.pages:
+                writer.add_page(page)
 
-        with open(temp_path, "wb") as f:
-            f.write(file.file.read())
+        except Exception as e:
+            print(f"❌ Skipping broken file: {path} | Error: {e}")
+            continue  # 🚀 skip bad file
 
-        reader = PdfReader(temp_path)
-        for page in reader.pages:
-            writer.add_page(page)
-
-    output_path = os.path.join(
-        OUTPUT_DIR, f"{uuid.uuid4()}.pdf"
-    )
+    output_path = f"outputs/{uuid.uuid4()}.pdf"
 
     with open(output_path, "wb") as f:
         writer.write(f)
 
     return output_path
-

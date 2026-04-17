@@ -1,34 +1,35 @@
-"useclient";
+"use client";
 
-export default function FileList({
+export default function SelectedFiles({
   files,
   onRemove,
 }: {
   files: File[];
-  onRemove: (index: number) => void;
+  onRemove?: (index: number) => void;
 }) {
+  if (!files.length) return null;
+
   return (
     <div className="mt-4 space-y-2">
-      {files.map((file, i) => (
+      {files.map((file, index) => (
         <div
-          key={i}
-          className="flex items-center justify-between bg-gray-100 rounded-lg px-4 py-2"
+          key={index}
+          className="flex justify-between items-center bg-gray-50 border border-gray-200 px-4 py-2 rounded-lg"
         >
-          <span className="text-gray-800 text-sm truncate">
+          <span className="text-gray-700 text-sm truncate">
             {file.name}
           </span>
-          <button
-            onClick={() => onRemove(i)}
-            className="text-red-500 text-sm hover:underline"
-          >
-            Remove
-          </button>
+
+          {onRemove && (
+            <button
+              onClick={() => onRemove(index)}
+              className="text-red-500 text-sm hover:underline"
+            >
+              Remove
+            </button>
+          )}
         </div>
       ))}
-
-      <p className="text-center text-sm text-gray-500">
-        {files.length} file{files.length > 1 ? "s" : ""} selected
-      </p>
     </div>
   );
 }

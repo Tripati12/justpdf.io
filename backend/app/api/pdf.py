@@ -1,6 +1,18 @@
 from fastapi import APIRouter, UploadFile, File
 from fastapi.responses import FileResponse
 import os
+import os
+import uuid
+import time
+
+import tabula
+
+
+import pandas as pd
+import pytesseract
+from pdf2image import convert_from_path
+from PIL import Image
+from PyPDF2 import PdfReader
 
 from app.services.pdf.merge import merge_pdfs
 from app.services.pdf.split import split_pdf
@@ -20,29 +32,20 @@ from app.services.pdf.excel_to_pdf import excel_to_pdf
 from app.services.pdf.pdf_to_word import pdf_to_word
 
 from app.services.pdf.pdf_to_excel_tabula import pdf_to_excel_tabula
-from fastapi.responses import FileResponse
+
+
 from fastapi import UploadFile, File, APIRouter
+
 from app.services.pdf.split import split_pdf
 
 router = APIRouter()
 
 
-import tabula
 
 
-
-
-
-import pandas as pd
-import pytesseract
-from pdf2image import convert_from_path
-from PIL import Image
-from PyPDF2 import PdfReader
-
-router = APIRouter()
 
 from app.services.pdf.pdf_to_jpg import pdf_to_jpg
-from fastapi.responses import FileResponse
+
 import zipfile
 
 from app.services.pdf.protect_pdf import protect_pdf
@@ -53,51 +56,32 @@ from fastapi import Form
 from app.services.pdf.jpg_to_pdf import images_to_pdf
 from typing import List
 from fastapi import UploadFile, File, Form
-from fastapi.responses import FileResponse
+
 
 from fastapi import Form
-from fastapi.responses import FileResponse
+
 from app.services.pdf.watermark import add_watermark
 
 from app.services.pdf.delete_pages import delete_pages
 from app.services.pdf.reorder_pages import reorder_pages
 from app.services.pdf.extract_pages import extract_pages
 
-from fastapi import APIRouter, UploadFile, File
-import os
-import uuid
-
-from app.services.queue import queue
-from app.services.pdf_worker import process_pdf
-
-router = APIRouter()
-
-TEMP_DIR = "temp"
-OUTPUT_DIR = "outputs"
 
 
-@router.post("/word-to-pdf")
-async def word_to_pdf(file: UploadFile = File(...)):
-    
-    # create unique filename
-    file_id = str(uuid.uuid4())
-    
-    input_path = os.path.join(TEMP_DIR, f"{file_id}.docx")
-    output_path = os.path.join(OUTPUT_DIR, file_id)
 
-    # save uploaded file
-    with open(input_path, "wb") as f:
-        f.write(await file.read())
 
-    # enqueue job
-    job = queue.enqueue(process_pdf, input_path, output_path)
+from pathlib import Path
 
-    return {
-        "job_id": job.id,
-        "status": "queued"
-    }
+BASE_DIR = Path(__file__).resolve().parent.parent
 
-router = APIRouter()
+TEMP_DIR = BASE_DIR / "app" / "temp"
+OUTPUT_DIR = BASE_DIR / "app" / "outputs"
+
+TEMP_DIR.mkdir(parents=True, exist_ok=True)
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+
+
 
 TEMP_DIR = "temp"
 OUTPUT_DIR = "outputs"
@@ -108,18 +92,14 @@ router = APIRouter(prefix="/pdf", tags=["PDF Tools"])
 
 @router.post("/merge")
 async def merge_endpoint(files: list[UploadFile] = File(...)):
-    output = merge_pdfs(files)
+    output_path = merge_pdfs(files)
 
-    original_names = [f.filename.replace(".pdf", "") for f in files]
-    safe_name = "_".join(original_names[:3])  # limit length
-    filename = f"{safe_name}_merged.pdf"
-
+    
     return FileResponse(
-        output,
-        filename=filename,
-        media_type="application/pdf"
+        output_path,
+        media_type="application/pdf",
+        filename="merged.pdf"
     )
-
 
 @router.post("/split")
 async def split_endpoint(file: UploadFile = File(...)):
@@ -205,14 +185,33 @@ async def auto_compress_endpoint(
         filename="compressed.pdf",
         media_type="application/pdf"
     )
+import asyncio
 @router.post("/word-to-pdf")
-async def convert_word(file: UploadFile = File(...)):
-    pdf_path = word_to_pdf(file)
+async def word_to_pdf_endpoint(file: UploadFile = File(...)):
+    file_id = str(uuid.uuid4())
+
+    input_path = os.path.join("temp", f"{file_id}.docx")
+    output_path = os.path.join("outputs", f"{file_id}.pdf")
+
+    # Save file
+    with open(input_path, "wb") as f:
+        f.write(await file.read())
+
+    # Convert
+    await asyncio.to_thread(word_to_pdf, input_path, output_path)
+
+    # 🔥 VERY IMPORTANT CHECK
+    if not os.path.exists(output_path):
+        raise Exception("PDF not created")
+
+    # 🔥 ALSO IMPORTANT
+    if os.path.getsize(output_path) == 0:
+        raise Exception("PDF is empty")
 
     return FileResponse(
-        pdf_path,
-        media_type="application/pdf",
-        filename="converted.pdf"
+        path=output_path,
+        filename="converted.pdf",
+        media_type="application/pdf"
     )
 @router.post("/excel-to-pdf")
 async def excel_to_pdf_endpoint(
@@ -225,15 +224,16 @@ async def excel_to_pdf_endpoint(
         filename="spreadsheet.pdf",
         media_type="application/pdf"
     )
+
 @router.post("/pdf-to-word")
 async def pdf_to_word_endpoint(
     file: UploadFile = File(...)
 ):
-    output = pdf_to_word(file)
+    output = await asyncio.to_thread(pdf_to_word, file)  # ✅ ADD await
 
     return FileResponse(
         output,
-        filename="document.docx",
+        filename="converted.docx",
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
     )
 
@@ -412,3 +412,4 @@ async def extract_pages_endpoint(
 ):
     output = extract_pages(file, pages)
     return FileResponse(output, filename="extracted.pdf")
+

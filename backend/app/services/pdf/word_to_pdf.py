@@ -3,27 +3,18 @@ import uuid
 import subprocess
 from fastapi import UploadFile
 
-OUTPUT_DIR = "outputs"
+OUTPUT_DIR = "app/outputs"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-LIBREOFFICE_PATH = r"C:\Program Files\LibreOffice\program\soffice.exe"
+LIBREOFFICE_PATH = "soffice"
 
-def word_to_pdf(file: UploadFile) -> str:
-    job_id = str(uuid.uuid4())
-    job_dir = os.path.join(OUTPUT_DIR, job_id)
-    os.makedirs(job_dir, exist_ok=True)
+def word_to_pdf(input_path: str, output_path: str) -> str:
+    print("Using LibreOffice:", LIBREOFFICE_PATH)
+    output_dir = os.path.dirname(output_path)
 
-    input_path = os.path.join(job_dir, file.filename)
+    os.makedirs(output_dir, exist_ok=True)
 
-    # Save file
-    with open(input_path, "wb") as f:
-        f.write(file.file.read())
-
-    # Debug
-    print("LibreOffice exists:", os.path.exists(LIBREOFFICE_PATH))
-    print("Input file exists:", os.path.exists(input_path))
-
-    # Convert
+    # Run LibreOffice
     result = subprocess.run(
         [
             LIBREOFFICE_PATH,
@@ -31,22 +22,27 @@ def word_to_pdf(file: UploadFile) -> str:
             "--convert-to",
             "pdf",
             "--outdir",
-            job_dir,
+            output_dir,
             input_path,
         ],
         capture_output=True,
-        text=True,
+        text=True
     )
 
     print("STDOUT:", result.stdout)
     print("STDERR:", result.stderr)
 
-    pdf_path = os.path.join(
-        job_dir,
-        os.path.splitext(file.filename)[0] + ".pdf"
+    # LibreOffice creates file with same name
+    generated_pdf = os.path.join(
+        output_dir,
+        os.path.splitext(os.path.basename(input_path))[0] + ".pdf"
     )
 
-    if not os.path.exists(pdf_path):
-        raise Exception("PDF conversion failed")
+    # 🔴 CRITICAL CHECK
+    if not os.path.exists(generated_pdf):
+        raise Exception("❌ PDF not generated")
 
-    return pdf_path
+    # Rename to your desired output_path
+    os.rename(generated_pdf, output_path)
+
+    return output_path

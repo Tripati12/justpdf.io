@@ -1,55 +1,61 @@
-from pypdf import PdfReader, PdfWriter
-import zipfile
-import uuid
+print('CORRECT SPLIT FILE LOADED')
 import os
-from fastapi import UploadFile
+import uuid
+import zipfile
+from typing import List
+from PyPDF2 import PdfReader, PdfWriter
 
 OUTPUT_DIR = "outputs"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 
-def split_pdf(file: UploadFile) -> str:
-    # Create unique job folder
-    job_id = str(uuid.uuid4())
-    job_dir = os.path.join(OUTPUT_DIR, job_id)
-    os.makedirs(job_dir, exist_ok=True)
+def split_pdf(file_path: str, ranges: str):
+    reader = PdfReader(file_path)
 
-    pdf_path = os.path.join(job_dir, file.filename)
+    selected_pages = parse_ranges(ranges)
+    total_pages = len(reader.pages)
 
-    # ✅ Save uploaded file safely
-    pdf_bytes = file.file.read()
+    output_files = []
 
-    with open(pdf_path, "wb") as f:
-        f.write(pdf_bytes)
+    base_name = os.path.splitext(os.path.basename(file_path))[0]
 
-    # ✅ Reset pointer (important)
-    file.file.seek(0)
+    for page_num in selected_pages:
+        if page_num < 1 or page_num > total_pages:
+            continue  # skip invalid pages
 
-    # ✅ Read PDF
-    reader = PdfReader(pdf_path)
-    print("Total pages:", len(reader.pages))  # debug
-
-    page_files = []
-
-    # ✅ Split each page
-    for i, page in enumerate(reader.pages):
         writer = PdfWriter()
-        writer.add_page(page)
+        writer.add_page(reader.pages[page_num - 1])
 
-        page_filename = f"page_{i+1}.pdf"
-        page_path = os.path.join(job_dir, page_filename)
+        output_path = os.path.join(
+            OUTPUT_DIR,
+            f"page_{page_num}.pdf"
+        )
 
-        with open(page_path, "wb") as f:
+        with open(output_path, "wb") as f:
             writer.write(f)
 
-        print(f"Created: {page_filename}")  # debug
-        page_files.append(page_path)
+        output_files.append(output_path)
 
-    # ✅ Create ZIP
-    zip_path = os.path.join(job_dir, "split_pages.zip")
+    return output_files
+
+def parse_ranges(ranges: str) -> list[int]:
+    pages = set()
+
+    for part in ranges.split(","):
+        if "-" in part:
+            start, end = map(int, part.split("-"))
+            pages.update(range(start, end + 1))
+        else:
+            pages.add(int(part))
+
+    return sorted(pages)
+
+# ✅ PASTE HERE (same file, below split_pdf)
+def zip_files(file_paths: List[str]) -> str:
+    zip_path = os.path.join(OUTPUT_DIR, f"{uuid.uuid4()}.zip")
 
     with zipfile.ZipFile(zip_path, "w") as zipf:
-        for file_path in page_files:
-            zipf.write(file_path, os.path.basename(file_path))
+        for file in file_paths:
+            zipf.write(file, os.path.basename(file))
 
     return zip_path

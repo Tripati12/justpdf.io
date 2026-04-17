@@ -5,8 +5,8 @@ from pathlib import Path
 
 # Folders to clean
 FOLDERS_TO_CLEAN = [
-    Path("outputs"),
-    Path("temp")
+    Path("app/outputs"),
+    Path("app/temp")
 ]
 
 # File expiry time (seconds)

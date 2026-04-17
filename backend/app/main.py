@@ -1,67 +1,54 @@
-from app.api import pdf
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from app.api.router import api_router
+
+
 from app.utils.cleanup import start_cleanup_thread
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 
-app = FastAPI()
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # change later for production
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# --------------------------------------------------
-# App initialization
-# --------------------------------------------------
+# ----------------------------------------
+# App Initialization
+# ----------------------------------------
 
 app = FastAPI(
     title="JustPDF API",
-    description="Backend API for PDF tools like merge, split, extract, convert",
+    description="Backend API for PDF tools like merge, split, compress",
     version="1.0.0",
 )
+
+# ----------------------------------------
+# CORS (frontend ↔ backend)
+# ----------------------------------------
+
+# CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000"
-    ],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-app.include_router(pdf.router)
-@app.get("/")
-def health():
-    return{"status": "ok"}
-
-# --------------------------------------------------
-# CORS (frontend will talk to backend)
-# --------------------------------------------------
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # later restrict to your domain
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# --------------------------------------------------
-# Health check
-# --------------------------------------------------
+# ✅ include AFTER app is created
+app.include_router(api_router, prefix="/api/v1")
+
+# ----------------------------------------
+# Routes
+# ----------------------------------------
+
+# ----------------------------------------
+# Health Check
+# ----------------------------------------
 
 @app.get("/health", tags=["Health"])
 def health_check():
-    return {"status": "ok", "service": "JustPDF backend running"}
+    return {
+        "status": "ok",
+        "service": "JustPDF backend running"
+    }
 
-# --------------------------------------------------
-# Root
-# --------------------------------------------------
+# ----------------------------------------
+# Root Endpoint
+# ----------------------------------------
 
 @app.get("/", tags=["Root"])
 def root():
@@ -70,8 +57,14 @@ def root():
         "docs": "/docs",
         "health": "/health"
     }
-app.include_router(pdf.router)
+
+# ----------------------------------------
+# Startup Events
+# ----------------------------------------
 
 @app.on_event("startup")
-async def startup_event():
+def startup_event():
     start_cleanup_thread()
+
+
+
